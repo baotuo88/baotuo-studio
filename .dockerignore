@@ -1,0 +1,24 @@
+.git
+.idea
+docs2
+data
+docs/.next
+docs/.source
+docs/node_modules
+docs/out
+web/.next
+web/node_modules
+web/out
+*.log
+.env*
+!.env.example
+
+**/payment-keys/**
+
+# Local runtime data must never enter the GitHub/local image build context.
+volume
+logs
+outputs
+newapi/generated
+**/target
+**/__pycache__

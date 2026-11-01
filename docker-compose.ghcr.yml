@@ -1,0 +1,15 @@
+# Overlay on docker-compose-local.yml or docker-compose.yml.
+# Requires Docker Compose >= 2.24.4 for !reset.
+services:
+  web:
+    build: !reset null
+    image: ghcr.io/${GHCR_OWNER:-baotuo88}/baotuo-studio-web:${IMAGE_TAG:-latest}
+    pull_policy: always
+  server:
+    build: !reset null
+    image: ghcr.io/${GHCR_OWNER:-baotuo88}/baotuo-studio-server:${IMAGE_TAG:-latest}
+    pull_policy: always
+  publisher:
+    build: !reset null
+    image: ghcr.io/${GHCR_OWNER:-baotuo88}/baotuo-studio-publisher:${IMAGE_TAG:-latest}
+    pull_policy: always
