@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-for (const file of ['docker-compose.yml', 'docker-compose-local.yml']) {
+for (const file of ['docker-compose.yml', 'docker-compose-local.yml', 'docker-compose.external-nginx.yml']) {
     test(`${file} deploys the app without a gateway`, async () => {
         const source = await readFile(new URL('../' + file, import.meta.url), 'utf8');
         const services = [...source.matchAll(/^  ([a-z][a-z0-9-]*):\s*$/gm)].map(match => match[1]);

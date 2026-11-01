@@ -1,6 +1,8 @@
-# Docker 完整部署指南
+# 外部 Nginx 源码部署指南
 
 当前部署不包含 New API 或视频辅助网关。模型在项目后台 → 模型渠道配置自定义接口，再通过“模型能力与计费”接入创作。无需执行网关初始化脚本。
+
+默认镜像部署请使用 `docker compose up -d`，详见 [GitHub 镜像部署](github-images.md)。以下仅介绍保留的外部 Nginx 源码部署方案。
 
 本文档介绍如何使用 Docker Compose 一键部署 Inspire Studio 的全部服务（PostgreSQL、Redis、后端、前端、Nginx）。
 
@@ -65,7 +67,7 @@ Compose 中的 Nginx 容器会挂载以下宿主机目录，确保这些目录�
 ## 3. 构建并启动
 
 ```bash
-docker compose up --build -d
+docker compose -f docker-compose.external-nginx.yml up --build -d
 ```
 
 首次运行会构建 `web` 和 `server` 镜像，耗时取决于网络和机器性能。
@@ -73,7 +75,7 @@ docker compose up --build -d
 查看服务状态：
 
 ```bash
-docker compose ps
+docker compose -f docker-compose.external-nginx.yml ps
 ```
 
 所有服务状态为 `Up` 且 `healthy`（PostgreSQL、Redis）即表示启动成功。
@@ -98,27 +100,27 @@ curl http://127.0.0.1:8080/api/v1/health
 
 ```bash
 # 停止所有服务
-docker compose stop
+docker compose -f docker-compose.external-nginx.yml stop
 
 # 重启所有服务
-docker compose restart
+docker compose -f docker-compose.external-nginx.yml restart
 
 # 查看日志
-docker compose logs -f
+docker compose -f docker-compose.external-nginx.yml logs -f
 
 # 仅查看某个服务的日志
-docker compose logs -f server
+docker compose -f docker-compose.external-nginx.yml logs -f server
 
 # 重新构建并启动（代码更新后）
-docker compose up --build -d
+docker compose -f docker-compose.external-nginx.yml up --build -d
 
 # 停止并删除容器（数据卷不受影响）
-docker compose down
+docker compose -f docker-compose.external-nginx.yml down
 ```
 
 ## 7. 注意事项
 
 - `.env`、AI 渠道密钥、对象存储密钥、证书私钥等**不要提交到 Git**。
 - 浏览器可见的 `NEXT_PUBLIC_*` 环境变量不应用于保存任何密钥。
-- 数据持久化在项目根目录的 `volume/` 下（PostgreSQL 和 Redis），`docker compose down` 不会删除数据卷。
+- 数据持久化在项目根目录的 `volume/` 下（PostgreSQL 和 Redis），`docker compose -f docker-compose.external-nginx.yml down` 不会删除数据卷。
 - Agent 提示词文件挂载自 `server/config/prompts/`，修改后重启 `server` 容器即可生效。

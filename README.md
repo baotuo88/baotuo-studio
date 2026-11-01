@@ -23,10 +23,10 @@
 
 仓库：<https://github.com/baotuo88/baotuo-studio>。推送 `main` / `master` 或 `v*` 标签会由 GitHub Actions 构建并发布前端、后端、发布服务三个镜像到 `ghcr.io/baotuo88/baotuo-studio-*`。PR 只构建、不发布，默认构建 `linux/amd64`。
 
-填写 `.env` 后，使用 Docker Compose 2.24.4+ 拉取镜像启动：
+填写 `.env` 后，直接拉取 GitHub 已构建的镜像并启动：
 
 ```sh
-docker compose -f docker-compose-local.yml -f docker-compose.ghcr.yml up -d --no-build
+docker compose up -d
 ```
 
 首次使用须等 Actions 全部构建成功。镜像为私有时，先登录 GHCR。操作说明、固定版本部署和回滚见 [GitHub 镜像发布](deploy_docs/github-images.md)。
@@ -50,7 +50,7 @@ docker compose -f docker-compose-local.yml -f docker-compose.ghcr.yml up -d --no
 
 4. 默认访问 `http://localhost:5550`。首次启动会按 `.env` 创建新的管理员。登录后台后配置模型渠道、对象存储、邮件、支付及内容；这些配置都保存在各自部署环境中。
 
-本地 Compose 的 Web 入口仅绑定 `127.0.0.1`；服务器部署请使用 HTTPS 反向代理。`docker-compose.yml` 是另一种外部 Nginx 部署方式，启用前需要自行配置相应目录。
+本地 Compose 的 Web 入口仅绑定 `127.0.0.1`；服务器部署请使用 HTTPS 反向代理。默认 `docker-compose.yml` 使用仓库自带 Nginx 配置。原先外部 Nginx 部署方式保留在 `docker-compose.external-nginx.yml`，启用前需要自行配置相应目录。
 
 > 这份源码中的迁移已移除历史内容导入，只用于全新数据库。不要把它直接接到已有数据库执行 Flyway，也不要用它覆盖现有环境的迁移历史。
 

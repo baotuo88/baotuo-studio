@@ -43,7 +43,7 @@
 
 ## 3. 服务器部署
 
-需要 Docker 与 Docker Compose **2.24.4 或以上版本**。保留仓库中的 Compose 文件、`nginx/`、`server/config/` 等运行配置；镜像不会包含部署者的 `.env` 和支付密钥。
+默认部署需要 Docker 与 Docker Compose v2；只有使用 `!reset` 覆盖文件时才要求 **2.24.4 或以上版本**。保留仓库中的 Compose 文件、`nginx/`、`server/config/` 等运行配置；镜像不会包含部署者的 `.env` 和支付密钥。
 
 复制 `.env.example` 为 `.env` 并填好数据库密码、应用密钥、管理员密码、发布服务令牌和访问地址。设置：
 
@@ -58,18 +58,17 @@ IMAGE_TAG=v1.0.0
 若包为私有，执行 `docker login ghcr.io -u baotuo88`，在密码提示中输入具有 `read:packages` 权限的 GitHub 令牌。
 
 ```sh
-docker compose -f docker-compose-local.yml -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose-local.yml -f docker-compose.ghcr.yml up -d --no-build
-docker compose -f docker-compose-local.yml -f docker-compose.ghcr.yml ps
+docker compose up -d
+docker compose ps
 ```
 
-`docker-compose.ghcr.yml` 通过 `!reset` 去掉三个应用的本地 build 定义，只从 GHCR 拉取镜像。它也可叠加到 `docker-compose.yml`；该配置使用外部 Nginx 目录，需另行准备反向代理配置。
+`docker-compose.ghcr.yml` 通过 `!reset` 去掉三个应用的本地 build 定义，只从 GHCR 拉取镜像。默认 `docker-compose.yml` 已直接使用 GHCR，无需叠加。原外部 Nginx 方案保留为 `docker-compose.external-nginx.yml`，可叠加 GHCR 文件使用。
 
 官方 PostgreSQL、Redis、Nginx 镜像继续正常拉取。所有部署方式均不包含 New API 或其辅助服务。
 
 ## 4. 本地构建与升级
 
-不叠加 GHCR 文件时通过 `pull_policy: build` 从源码构建，默认镜像名为 `baotuo-studio-web`、`baotuo-studio-server`、`baotuo-studio-publisher`：
+显式指定 `docker-compose-local.yml` 时，通过 `pull_policy: build` 从源码构建，默认镜像名为 `baotuo-studio-web`、`baotuo-studio-server`、`baotuo-studio-publisher`：
 
 ```sh
 docker compose -f docker-compose-local.yml up -d --build
@@ -77,7 +76,7 @@ docker compose -f docker-compose-local.yml up -d --build
 
 `IMAGE_PREFIX` 控制本地构建镜像前缀；GHCR 覆盖文件使用 `GHCR_OWNER`，不受 `IMAGE_PREFIX` 影响。
 
-升级时先确认目标工作流全部成功，将 `.env` 中 `IMAGE_TAG` 改为目标版本，然后执行上述 pull/up。回退镜像时使用之前记录的 SHA 或版本标签；若新版本执行了数据库迁移，须先确认旧代码兼容性，必要时从备份恢复，不能只回退镜像。
+升级时先确认目标工作流全部成功，将 `.env` 中 `IMAGE_TAG` 改为目标版本，然后执行 `docker compose up -d`，应用镜像设置了 `pull_policy: always`，会检查远端并拉取目标版本。回退镜像时使用之前记录的 SHA 或版本标签；若新版本执行了数据库迁移，须先确认旧代码兼容性，必要时从备份恢复，不能只回退镜像。
 
 容器名称已统一为 `baotuo-studio-*`。已有环境需沿用原 Compose 项目名和同一份数据挂载路径；在维护窗口停止旧容器，避免两个数据库容器同时挂载同一数据目录。此次改名没有修改数据库名称、数据目录或自动删除任何容器。
 
@@ -88,3 +87,5 @@ docker compose -f docker-compose-local.yml up -d --build
 真正的镜像构建与推送需由 GitHub 首次运行验证；本地配置完成不代表远端已经产生镜像。工作流当前验证 Docker 构建，不等同所有业务测试通过。
 
 本轮本地验证：9 项部署回归通过；工作流 YAML、矩阵构建路径、PR 不发布条件和包写入权限检查通过。尚未向远端推送或触发 Actions。
+
+默认入口调整：`docker compose up -d` 使用内置 Nginx 和 GHCR 镜像，访问 `http://localhost:5550`。原外部 Nginx 用户继续显式使用 `docker-compose.external-nginx.yml`，避免切换入口布局。

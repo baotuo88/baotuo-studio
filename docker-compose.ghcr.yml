@@ -1,4 +1,4 @@
-# Overlay on docker-compose-local.yml or docker-compose.yml.
+# Overlay on docker-compose-local.yml or docker-compose.external-nginx.yml.
 # Requires Docker Compose >= 2.24.4 for !reset.
 services:
   web:

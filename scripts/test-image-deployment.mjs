@@ -20,7 +20,7 @@ function config(files, overrides = {}) {
         cwd: root, env: { ...env, ...overrides }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     }));
 }
-for (const base of ['docker-compose.yml', 'docker-compose-local.yml']) {
+for (const base of ['docker-compose-local.yml', 'docker-compose.external-nginx.yml']) {
     test(`${base}: local builds use own image and container names`, () => {
         const result = config([base]);
         for (const service of ['web', 'server', 'publisher']) {
@@ -45,4 +45,17 @@ test('GHCR owner and release tag can be changed without editing compose files', 
     const result = config(['docker-compose-local.yml', 'docker-compose.ghcr.yml'], { GHCR_OWNER: 'example-team', IMAGE_TAG: 'v1.2.3' });
     assert.equal(result.services.web.image, 'ghcr.io/example-team/baotuo-studio-web:v1.2.3');
     assert.equal(result.services.server.image, 'ghcr.io/example-team/baotuo-studio-server:v1.2.3');
+});
+
+test('bare docker compose uses GHCR images and bundled Nginx without builds', () => {
+    const result = config([]);
+    assert.deepEqual(Object.keys(result.services).sort(), ['nginx', 'postgres', 'publisher', 'redis', 'server', 'web']);
+    for (const name of ['web', 'server', 'publisher']) {
+        assert.equal(result.services[name].image, `ghcr.io/baotuo88/baotuo-studio-${name}:${env.IMAGE_TAG}`);
+        assert.equal(result.services[name].build, undefined);
+        assert.equal(result.services[name].pull_policy, 'always');
+    }
+    assert.equal(result.services.nginx.network_mode, undefined);
+    assert.ok(result.services.nginx.volumes.some(volume => volume.source.endsWith('/nginx/default.conf')));
+    assert.ok(result.services.nginx.ports.some(port => String(port.published) === '5550'));
 });

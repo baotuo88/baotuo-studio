@@ -2,7 +2,7 @@
 
 ## 部署行为
 
-`docker-compose.yml` 和 `docker-compose-local.yml` 都只部署 PostgreSQL、Redis、Nginx、Web、发布服务和 Java 后端。任何基于这两份文件的 `pull`、`build`、`up` 都没有 New API 镜像或视频辅助服务可拉取、构建或启动。
+`docker-compose.yml`、`docker-compose-local.yml` 和 `docker-compose.external-nginx.yml` 都只部署 PostgreSQL、Redis、Nginx、Web、发布服务和 Java 后端。任何基于这些文件的 `pull`、`build`、`up` 都没有 New API 镜像或视频辅助服务可拉取、构建或启动。
 
 环境模板不再包含 NEWAPI 配置；旧 `scripts/setup-newapi.mjs` 会明确退出，不读取或写入凭证，也不请求网络。其他历史协议源码仅留作参考，不在部署链路中执行。
 
@@ -46,3 +46,5 @@ pnpm build
 - 5 个修改的 TS/TSX 文件通过 TypeScript 语法转译检查，未替代完整类型检查。
 - 已更新服务端协议选择测试，并新增直连模型目录不调用外部客户端的测试；当前缺少 Maven，未执行 Java 回归。
 - 模型可用性测试因未安装 `nanoid` 等前端依赖无法启动。此前依赖安装受到网络 DNS 限制；完整构建、浏览器验收和真实模型生成尚未执行。
+
+默认 `docker compose up -d` 从 GHCR 拉取应用镜像；本地源码构建使用 `docker compose -f docker-compose-local.yml up -d --build`。
