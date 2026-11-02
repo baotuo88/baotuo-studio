@@ -604,7 +604,12 @@ class PersistenceServiceTest {
     void shouldDeleteModelConfigRemovedFromChannel() {
         PersistenceRecords.UserAiChannelRecord existingChannel = new PersistenceRecords.UserAiChannelRecord();
         existingChannel.setChannelId("channel-1");
-        existingChannel.setApiKeyEncrypted("");
+        InspireProperties.App app = new InspireProperties.App();
+        app.setSecretKey("test-only-key-for-channel-validation");
+        when(properties.getApp()).thenReturn(app);
+        existingChannel.setApiKeyEncrypted(com.inspirestudio.common.SensitiveDataCrypto.encrypt("test-key", app.getSecretKey()));
+        existingChannel.setBaseUrl("https://old.example.com/v1");
+        existingChannel.setApiFormat("openai");
         existingChannel.setModels("[\"kept-model\",\"removed-model\"]");
         PersistenceRecords.UserAiModelConfigRecord kept = modelConfigRecord("config-kept", "channel-1", "kept-model");
         PersistenceRecords.UserAiModelConfigRecord removed = modelConfigRecord("config-removed", "channel-1", "removed-model");
@@ -612,6 +617,7 @@ class PersistenceServiceTest {
         when(repository.listPlatformAiModelConfigsByChannel("channel-1")).thenReturn(Flux.just(kept, removed));
         when(repository.updatePlatformAiChannel(org.mockito.ArgumentMatchers.any(PersistenceRecords.UserAiChannelRecord.class)))
                 .thenReturn(Mono.just(1L));
+        when(aiTaskRepository.existsExecutableTasksByModelConfig("config-kept")).thenReturn(Mono.just(false));
         when(aiTaskRepository.existsExecutableTasksByModelConfig("config-removed")).thenReturn(Mono.just(false));
         when(repository.deletePlatformAiModelConfig("config-removed")).thenReturn(Mono.just(1L));
 
@@ -622,6 +628,30 @@ class PersistenceServiceTest {
         Assertions.assertEquals(List.of("kept-model"), updated.models());
         verify(repository).deletePlatformAiModelConfig("config-removed");
         verify(repository, times(0)).deletePlatformAiModelConfig("config-kept");
+    }
+
+    @Test
+    void shouldRejectCreatingChannelWithoutKey() {
+        Assertions.assertThrows(BusinessException.class, () -> service.createChannel(
+                new PersistenceDtos.ChannelMutationRequest("channel-1", "渠道", "https://example.com/v1", " ", "openai", List.of("model"), 0)).block());
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void shouldRejectChangingTransportOfBusyChannel() {
+        PersistenceRecords.UserAiChannelRecord existing = new PersistenceRecords.UserAiChannelRecord();
+        existing.setChannelId("channel-1");
+        existing.setBaseUrl("https://old.example.com/v1");
+        existing.setApiFormat("openai");
+        existing.setApiKeyEncrypted("encrypted-key");
+        when(repository.getPlatformAiChannel("channel-1")).thenReturn(Mono.just(existing));
+        when(repository.listPlatformAiModelConfigsByChannel("channel-1"))
+                .thenReturn(Flux.just(modelConfigRecord("config-1", "channel-1", "model")));
+        when(aiTaskRepository.existsExecutableTasksByModelConfig("config-1")).thenReturn(Mono.just(true));
+        BusinessException error = Assertions.assertThrows(BusinessException.class, () -> service.updateChannel(
+                new PersistenceDtos.ChannelMutationRequest("channel-1", "渠道", "https://new.example.com/v1", "", "openai", List.of("model"), 0)).block());
+        Assertions.assertTrue(error.getMessage().contains("等待或运行任务"));
+        verify(repository, times(0)).updatePlatformAiChannel(org.mockito.ArgumentMatchers.any());
     }
 
     private static PersistenceRecords.UserAiModelConfigRecord modelConfigRecord(String id, String channelId, String modelName) {

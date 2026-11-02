@@ -63,7 +63,7 @@ export function ChannelManagement() {
     const save = async () => {
         if (busy || !draft) return;
         let values: ServerChannel;
-        try { values = normalizeChannelDraft({ ...draft, ...await form.validateFields() }); }
+        try { values = normalizeChannelDraft({ ...draft, ...await form.validateFields() }, editing); }
         catch (failure) { if (failure instanceof Error) message.error(failure.message); return; }
         setBusy(true);
         try {
@@ -120,7 +120,7 @@ export function ChannelManagement() {
                 <Form.Item name="name" label="渠道名称" rules={[{ required: true, whitespace: true, message: "请输入渠道名称" }]}><Input placeholder="例如：我的模型服务" maxLength={100} /></Form.Item>
                 <Form.Item name="apiFormat" label="接口协议" rules={[{ required: true }]}><Select options={formats} /></Form.Item>
                 <Form.Item name="baseUrl" label="接口地址" rules={[{ required: true, whitespace: true, message: "请输入接口地址" }]}><Input placeholder="https://api.example.com/v1" autoComplete="off" /></Form.Item>
-                <Form.Item name="apiKey" label="API Key" extra={editing ? "留空保留原密钥；需要拉取模型时请重新输入。" : "密钥仅由管理员配置，由服务端加密保存。"}><Input.Password autoComplete="new-password" placeholder={editing ? "留空保留原密钥" : "填写供应商密钥，无鉴权服务可留空"} /></Form.Item>
+                <Form.Item name="apiKey" label="API Key" rules={[{ required: !editing, whitespace: true, message: "请输入 API Key" }]} extra={editing ? "留空保留原密钥；需要拉取模型时请重新输入。" : "密钥仅由管理员配置，由服务端加密保存。"}><Input.Password autoComplete="new-password" placeholder={editing ? "留空保留原密钥" : "填写供应商 API Key"} /></Form.Item>
                 <Form.Item name="models" label="模型 ID" rules={[{ required: true, type: "array", min: 1, message: "至少添加一个模型 ID" }]} extra="输入供应商的完整模型 ID，按回车添加。拉取列表会合并现有模型。"><Select mode="tags" tokenSeparators={[",", "\n"]} placeholder="输入模型 ID 后按回车" open={false} /></Form.Item>
                 <Button onClick={() => void fetchModels()} loading={fetching} disabled={busy || fetching}>从接口拉取模型</Button>
                 {editing ? <p className="mt-3 text-xs text-[var(--studio-muted)]">移除模型会删除关联的能力配置；正在执行的任务会阻止移除。</p> : null}

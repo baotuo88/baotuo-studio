@@ -15,7 +15,7 @@ function nextConfig(phase: string): NextConfig {
         devIndicators: false,
         allowedDevOrigins: isDev ? ["*.*.*.*"] : [],
         typescript: {
-            ignoreBuildErrors: true,
+            ignoreBuildErrors: false,
         },
         env: {
             NEXT_PUBLIC_APP_VERSION: localVersion,

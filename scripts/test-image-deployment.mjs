@@ -59,3 +59,19 @@ test('bare docker compose uses GHCR images and bundled Nginx without builds', ()
     assert.ok(result.services.nginx.volumes.some(volume => volume.source.endsWith('/nginx/default.conf')));
     assert.ok(result.services.nginx.ports.some(port => String(port.published) === '5550'));
 });
+
+for (const base of ['docker-compose.yml', 'docker-compose-local.yml', 'docker-compose.external-nginx.yml']) {
+    test(base + ': databases are private and Redis authentication is consistent', () => {
+        for (const password of ['', 'test password $ with symbols']) {
+            const { services } = config([base], { REDIS_PASSWORD: password });
+            for (const name of ['postgres', 'redis']) {
+                assert.ok(services[name].ports.every(port => port.host_ip === '127.0.0.1'));
+            }
+            assert.equal(services.redis.environment.REDIS_PASSWORD.replaceAll("$$", "$"), password);
+            assert.equal(services.server.environment.REDIS_PASSWORD.replaceAll("$$", "$"), password);
+            assert.match(services.redis.command.join(' '), /--requirepass/);
+            assert.match(services.redis.command.join(' '), /docker-entrypoint.sh redis-server/);
+            assert.match(services.redis.healthcheck.test.join(' '), /REDISCLI_AUTH/);
+        }
+    });
+}

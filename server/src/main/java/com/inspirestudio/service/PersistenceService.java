@@ -134,6 +134,7 @@ public class PersistenceService {
 
     /** 创建全站渠道。 */
     public Mono<AiTaskDtos.AiChannelConfig> createChannel(PersistenceDtos.ChannelMutationRequest request) {
+        if (!StringUtils.hasText(request.apiKey())) return Mono.error(new BusinessException(ErrorCode.PARAM_MISSING, "当前模型调用需要API Key"));
         return encryptSecret(request.apiKey()).flatMap(encrypted -> {
             PersistenceRecords.UserAiChannelRecord record = channelRecord(firstNonEmpty(request.id(), UUID.randomUUID().toString()), request, encrypted);
             return repository.createPlatformAiChannel(record).thenReturn(channelDto(record, request.apiKey()));
@@ -148,6 +149,7 @@ public class PersistenceService {
                 .switchIfEmpty(Mono.error(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "渠道不存在")))
                 .flatMap(existing -> repository.listPlatformAiModelConfigsByChannel(request.id()).collectList()
                         .flatMap(modelConfigs -> {
+                            if (!StringUtils.hasText(request.apiKey()) && !StringUtils.hasText(existing.getApiKeyEncrypted())) return Mono.error(new BusinessException(ErrorCode.PARAM_MISSING, "当前模型调用需要API Key"));
                             Set<String> retainedModels = new HashSet<>(request.models() == null ? List.of() : request.models());
                             List<PersistenceRecords.UserAiModelConfigRecord> removedModelConfigs = modelConfigs.stream()
                                     .filter(config -> !retainedModels.contains(config.getModelName()))
@@ -155,12 +157,29 @@ public class PersistenceService {
                             return (StringUtils.hasText(request.apiKey()) ? encryptSecret(request.apiKey()) : Mono.just(existing.getApiKeyEncrypted()))
                                     .flatMap(encrypted -> {
                                         PersistenceRecords.UserAiChannelRecord record = channelRecord(request.id(), request, encrypted);
-                                        return repository.updatePlatformAiChannel(record)
+                                        return ensureChannelTransportIdle(existing, request, modelConfigs)
+                                                .then(Mono.defer(() -> repository.updatePlatformAiChannel(record)))
                                                 .then(deleteModelConfigs(removedModelConfigs))
                                                 .then(decryptSecret(encrypted))
                                                 .map(apiKey -> channelDto(record, apiKey));
                                     });
                         }));
+    }
+
+    /** 防止等待或运行中的任务被重定向至另一供应商。 */
+    private Mono<Void> ensureChannelTransportIdle(PersistenceRecords.UserAiChannelRecord existing,
+            PersistenceDtos.ChannelMutationRequest request,
+            List<PersistenceRecords.UserAiModelConfigRecord> modelConfigs) {
+        boolean changed = !java.util.Objects.equals(existing.getBaseUrl(), request.baseUrl())
+                || !java.util.Objects.equals(existing.getApiFormat(), request.apiFormat())
+                || StringUtils.hasText(request.apiKey());
+        if (!changed) return Mono.empty();
+        return Flux.fromIterable(modelConfigs)
+                .concatMap(config -> aiTaskRepository.existsExecutableTasksByModelConfig(config.getModelConfigId()))
+                .any(Boolean.TRUE::equals)
+                .flatMap(active -> active
+                        ? Mono.<Void>error(new BusinessException(ErrorCode.BUSINESS_ERROR, "渠道仍有等待或运行任务，暂不能修改接口地址、协议或密钥"))
+                        : Mono.<Void>empty());
     }
 
     /**

@@ -1,4 +1,5 @@
-export function normalizeChannelDraft<T extends { name: string; baseUrl: string; apiKey: string; models: string[] }>(draft: T): T {
+export function normalizeChannelDraft<T extends { name: string; baseUrl: string; apiKey: string; models: string[] }>(draft: T, editing = false): T {
+    if (!editing && !draft.apiKey.trim()) throw new Error("请输入 API Key，当前模型调用需要密钥");
     const name = draft.name.trim();
     if (!name) throw new Error("请输入渠道名称");
     let url: URL;
